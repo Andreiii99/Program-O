@@ -303,8 +303,12 @@
         for ($i = 1; $i < count($matches); $i++)
         {
           $curStar = trim($matches[$i][0]);
-          $curStar = preg_replace('/[[:punct:]]/uis', ' ',$curStar);
-          $curIndex = $i;
+          if ($curStar[0]=='"' && $curStar[strlen($curStar)-1]=='"') {
+              $curStar = substr($curStar,1,strlen($curStar)-2);
+          } else {
+              $curStar = preg_replace('/[[:punct:]]/uis', ' ',$curStar);
+              $curIndex = $i;
+          }
           runDebug(__FILE__, __FUNCTION__, __LINE__, "Adding $curStar to the star stack.", 2);
           $convoArr['star'][$i] = $curStar;
         }

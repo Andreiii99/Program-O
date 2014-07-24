@@ -467,6 +467,16 @@
     return $response_string;
   }
 
+  function parse_presrai_tag($convoArr, $element, $parentName, $level)
+  {
+    runDebug(__FILE__, __FUNCTION__, __LINE__, 'Parsing an SRAI tag.', 2);
+    $response_string = tag_to_string($convoArr, $element, $parentName, $level, 'element');
+    $response = run_srai($convoArr, $response_string);
+    runDebug(__FILE__, __FUNCTION__, __LINE__, 'Finished parsing SRAI tag', 4);
+    $response_string = (is_array($response_string)) ? implode_recursive(' ', $response, __FILE__, __FUNCTION__, __LINE__) : $response;
+    return $response_string;
+  }
+
   function parse_sr_tag($convoArr, $element, $parentName, $level)
   {
     runDebug(__FILE__, __FUNCTION__, __LINE__, 'Parsing an SR tag.', 4);
@@ -657,14 +667,14 @@
   }
 
   function parse_that_tag($convoArr, $element, $parentName, $level)
-  {
+  { // некорректно работает that index="2,1"
     runDebug(__FILE__, __FUNCTION__, __LINE__, 'Parsing a THAT tag. How awesome is that?', 2);
 
     if(!empty($element))
     {
       $attributes = $element->attributes();
       runDebug(__FILE__, __FUNCTION__, __LINE__, 'element attributes = ' . print_r($attributes, true), 2);
-      $index = $attributes['index'];
+      $index = (string)$element['index'];
       runDebug(__FILE__, __FUNCTION__, __LINE__, 'element attribute index = ' . $index, 2);
       $index = (!empty ($index)) ? $index : 1;
       if ($index == intval($index))
@@ -695,7 +705,6 @@
   function parse_input_tag($convoArr, $element, $parentName, $level)
   {
     runDebug(__FILE__, __FUNCTION__, __LINE__, 'Parsing an INPUT tag.', 2);
-    $element = $element->input;
     $input_index = (string)$element['index'];
     $input_index = (!empty ($input_index)) ? $input_index : 1;
     runDebug(__FILE__, __FUNCTION__, __LINE__, "Parsing the INPUT tag. Index = $input_index.", 4);
@@ -757,15 +766,23 @@ values (NULL, $bot_id, '[aiml]', '[pattern]', '[that]', '[template]', '$user_id'
       $template = substr($template,0,$tplLen - 11);
       $template = str_replace('<text>', '', $template);
       $template = str_replace('</text>', '', $template);
-      $template_eval = $category->template->eval;
-      if (!empty($template_eval))
+      if ($template_eval = $category->template->eval)
       {
-        $parsed_template_eval = parse_eval_tag($convoArr, $template_eval, 'learn_template', $level + 1);
-        $template = preg_replace('~<eval>(.*?)</eval>~i', $parsed_template_eval, $template);
+          $parsed_template_eval = parse_eval_tag($convoArr, $template_eval, 'learn_template', $level + 1);
+          $template = preg_replace('~<eval>(.*?)</eval>~i', $parsed_template_eval, $template);
       }
-      $catXML->addChild('pattern', $pattern);
+      elseif ($template_eval = $category->template->evalsrai)
+      {
+          $parsed_template_eval = parse_eval_tag($convoArr, $template_eval, 'learn_template', $level + 1);
+          $template = preg_replace('~<evalsrai>(.*?)</evalsrai>~i', $parsed_template_eval, $template);
+          $template = "<srai>".$template."</srai>";
+      }
+
+
+      if (!empty($template_eval))
+            $catXML->addChild('pattern', $pattern);
       if (!empty($thatpattern)) $catXML->addChild('that', $thatpattern);
-      $catXML->addChild('template', $template);
+            $catXML->addChild('template', $template);
       $category = $catXML->asXML();
       $category = trim(str_replace('<?xml version="1.0"?>', '', $category));
       $sqlAdd = str_replace('[aiml]', $category, $sqlTemplate);
